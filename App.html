@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Forest Ecosystem Simulator - SDG 15</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        background: #1a1a2e;
+        color: #eee;
+      }
+      #canvas {
+        display: block;
+        width: 100%;
+        height: 100vh;
+      }
+      #ui-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .panel {
+        pointer-events: all;
+        background: rgba(20, 20, 40, 0.9);
+        border-radius: 8px;
+        padding: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      #stats-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 280px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      #controls-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 300px;
+      }
+      #graphs-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 400px;
+      }
+      h3 {
+        color: #4ecdc4;
+        margin-bottom: 10px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .stat-item {
+        margin: 8px 0;
+        font-size: 12px;
+      }
+      .stat-label {
+        color: #aaa;
+        display: inline-block;
+        width: 140px;
+      }
+      .stat-value {
+        color: #fff;
+        font-weight: bold;
+      }
+      .stat-bar {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        margin-top: 3px;
+        overflow: hidden;
+      }
+      .stat-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4ecdc4, #44a8a0);
+        transition: width 0.3s;
+      }
+      .btn {
+        background: #4ecdc4;
+        color: #1a1a2e;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        margin: 5px 0;
+        width: 100%;
+        font-weight: bold;
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        background: #44a8a0;
+        transform: translateY(-2px);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .btn.danger {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn.danger:hover {
+        background: #c0392b;
+      }
+      .btn.success {
+        background: #2ecc71;
+        color: white;
+      }
+      .btn-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin: 10px 0;
+      }
+      select,
+      input[type="range"] {
+        width: 100%;
+        margin: 5px 0;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 5px;
+        color: white;
+        font-size: 12px;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+        font-size: 11px;
+        color: #aaa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      canvas.graph {
+        width: 100%;
+        height: 150px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 5px;
+      }
+      .warning {
+        background: rgba(231, 76, 60, 0.2);
+        border-left: 3px solid #e74c3c;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 3px;
+        font-size: 11px;
+      }
+      .info {
+        background: rgba(52, 152, 219, 0.2);
+        border-left: 3px solid #3498db;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 3px;
+        font-size: 11px;
+      }
+      .species-list {
+        max-height: 200px;
+        overflow-y: auto;
+        margin: 10px 0;
+      }
+      .species-item {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px;
+        margin: 5px 0;
+        border-radius: 5px;
+        font-size: 11px;
+      }
+      .species-name {
+        font-weight: bold;
+        color: #4ecdc4;
+      }
+      .species-pop {
+        color: #aaa;
+        float: right;
+      }
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-top: 4px solid #4ecdc4;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(78, 205, 196, 0.5);
+        border-radius: 3px;
+      }
+      select option {
+        background-color: #141428; /* Warna latar belakang gelap */
+        color: white; /* Warna teks putih */
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <div id="ui-overlay">
+      <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading Forest Ecosystem...</p>
+      </div>
+
+      <div id="controls-panel" class="panel" style="display: none">
+        <h3>🌲 Kontrol Ekosistem</h3>
+
+        <label>Mode Interaksi</label>
+        <select id="interaction-mode">
+          <option value="plant">🌱 Tanam Pohon</option>
+          <option value="remove">🪓 Hapus Vegetasi</option>
+          <option value="add-invasive">🦠 Tambah Invasif</option>
+          <option value="remove-invasive">🧹 Hapus Invasif</option>
+        </select>
+
+        <label>Jenis Pohon</label>
+        <select id="tree-type">
+          <option value="oak">Oak (Lambat, Kuat)</option>
+          <option value="pine">Pine (Cepat, Sedang)</option>
+          <option value="birch">Birch (Sedang, Ringan)</option>
+          <option value="maple">Maple (Variasi Musim)</option>
+          <option value="sequoia">Sequoia (Besar, Lambat)</option>
+          <option value="pioneer">Pioneer (Sangat Cepat)</option>
+        </select>
+
+        <div class="btn-group">
+          <button class="btn" onclick="startRain()">☔ Hujan</button>
+          <button class="btn danger" onclick="stopRain()">⛔ Stop</button>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn" onclick="addHerbivore()">🦌 +Herbivora</button>
+          <button class="btn" onclick="addCarnivore()">🐺 +Karnivora</button>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn success" onclick="reforest()">
+            🌳 Reforestasi
+          </button>
+          <button class="btn danger" onclick="deforest()">
+            🪓 Deforestasi
+          </button>
+        </div>
+
+        <label>Kecepatan Simulasi: <span id="speed-val">1x</span></label>
+        <input
+          type="range"
+          id="sim-speed"
+          min="0.5"
+          max="5"
+          step="0.5"
+          value="1"
+          oninput="updateSpeed(this.value)"
+        />
+
+        <button class="btn" onclick="toggleSeason()" style="margin-top: 10px">
+          🌤️ Ubah Musim
+        </button>
+
+        <div class="info" style="margin-top: 10px">
+          💡 Klik pada terrain untuk berinteraksi sesuai mode yang dipilih
+        </div>
+      </div>
+
+      <div id="stats-panel" class="panel" style="display: none">
+        <h3>📊 Status Ekosistem</h3>
+
+        <div class="stat-item">
+          <span class="stat-label">Kesehatan:</span>
+          <span class="stat-value" id="health-val">100%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="health-bar"
+              style="width: 100%"
+            ></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Biodiversitas:</span>
+          <span class="stat-value" id="biodiv-val">50%</span>
+          <div class="stat-bar">
+            <div class="stat-bar-fill" id="biodiv-bar" style="width: 50%"></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Tutupan Hutan:</span>
+          <span class="stat-value" id="coverage-val">30%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="coverage-bar"
+              style="width: 30%"
+            ></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Kesuburan Tanah:</span>
+          <span class="stat-value" id="fertility-val">80%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="fertility-bar"
+              style="width: 80%"
+            ></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Risiko Erosi:</span>
+          <span class="stat-value" id="erosion-val">20%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="erosion-bar"
+              style="
+                width: 20%;
+                background: linear-gradient(90deg, #e74c3c, #c0392b);
+              "
+            ></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Kelembaban Tanah:</span>
+          <span class="stat-value" id="moisture-val">60%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="moisture-bar"
+              style="width: 60%"
+            ></div>
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Risiko Banjir:</span>
+          <span class="stat-value" id="flood-val">10%</span>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill"
+              id="flood-bar"
+              style="
+                width: 10%;
+                background: linear-gradient(90deg, #3498db, #2980b9);
+              "
+            ></div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 15px">🌿 Populasi Spesies</h3>
+        <div class="species-list" id="species-list"></div>
+
+        <h3 style="margin-top: 15px">⚠️ Peringatan</h3>
+        <div id="warnings"></div>
+
+        <h3 style="margin-top: 15px">ℹ️ Info</h3>
+        <div class="stat-item">
+          <span class="stat-label">Musim:</span>
+          <span class="stat-value" id="season-val">Spring</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Hari Simulasi:</span>
+          <span class="stat-value" id="day-val">0</span>
+        </div>
+      </div>
+
+      <div id="graphs-panel" class="panel" style="display: none">
+        <h3>📈 Tren Historis</h3>
+        <canvas class="graph" id="history-graph"></canvas>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // ========== GLOBAL STATE ==========
+      const state = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        terrain: null,
+        trees: [],
+        animals: [],
+        particles: [],
+        invasiveSpecies: [],
+
+        // Soil parameters
+        soil: {
+          nitrogen: 80,
+          phosphorus: 70,
+          potassium: 75,
+          moisture: 60,
+          erosion: 20,
+          fertility: 80,
+        },
+
+        // Ecosystem metrics
+        biodiversity: 50,
+        forestCoverage: 30,
+        ecosystemHealth: 100,
+        floodRisk: 10,
+
+        // Species populations
+        species: {
+          oak: 0,
+          pine: 0,
+          birch: 0,
+          maple: 0, // Tambahkan ini
+          sequoia: 0, // Tambahkan ini
+          pioneer: 0,
+          herbivore: 5,
+          carnivore: 2,
+          omnivore: 0, // Tambahkan ini juga jika Anda pakai omnivora tadi
+          insects: 20,
+          invasive: 0,
+        },
+
+        // Environmental
+        isRaining: false,
+        season: "spring",
+        dayCount: 0,
+        temperature: 20,
+
+        // Simulation
+        simSpeed: 1,
+        time: 0,
+
+        // History for graphs
+        history: {
+          health: [100],
+          biodiv: [50],
+          coverage: [30],
+        },
+      };
+
+      // ========== INITIALIZATION ==========
+      function init() {
+        // Setup scene
+        state.scene = new THREE.Scene();
+        state.scene.background = new THREE.Color(0x87ceeb);
+        state.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+
+        // Setup camera
+        state.camera = new THREE.PerspectiveCamera(
+          60,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          500
+        );
+        state.camera.position.set(0, 40, 60);
+        state.camera.lookAt(0, 0, 0);
+
+        // Setup renderer
+        const canvas = document.getElementById("canvas");
+        state.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        state.renderer.setSize(window.innerWidth, window.innerHeight);
+        state.renderer.shadowMap.enabled = true;
+
+        // Lighting
+        const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x3d7c3d, 0.6);
+        state.scene.add(hemiLight);
+
+        // Directional Light (Matahari)
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(50, 50, 30); // Posisi awal
+        dirLight.castShadow = true;
+
+        // Pengaturan Bayangan (Penting untuk realisme visual)
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.left = -50;
+        dirLight.shadow.camera.right = 50;
+        dirLight.shadow.camera.top = 50;
+        dirLight.shadow.camera.bottom = -50;
+        dirLight.shadow.camera.near = 0.1;
+        dirLight.shadow.camera.far = 150;
+        state.scene.add(dirLight);
+
+        state.dirLight = dirLight; //
+
+        createSky(); // Panggil fungsi langit (yang akan kita definisikan)
+        createClouds();
+        // Create terrain
+        createTerrain();
+
+        // Initial vegetation
+        const treeTypes = ["oak", "pine", "birch", "maple", "sequoia"];
+
+        for (let i = 0; i < 30; i++) {
+          // Naikkan jumlah pohon awal jadi 30 biar hutan lebih rimbun
+          const x = (Math.random() - 0.5) * 80;
+          const z = (Math.random() - 0.5) * 80;
+          const type = treeTypes[Math.floor(Math.random() * treeTypes.length)];
+          plantTree(x, z, type);
+        }
+
+        // Initial animals
+        for (let i = 0; i < 5; i++) addHerbivore();
+        for (let i = 0; i < 2; i++) addCarnivore();
+
+        // Mouse interaction
+        canvas.addEventListener("click", onCanvasClick);
+        window.addEventListener("resize", onResize);
+
+        // Hide loading
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("controls-panel").style.display = "block";
+        document.getElementById("stats-panel").style.display = "block";
+
+        // Start animation
+        animate();
+        setInterval(updateEcosystem, 1000);
+      }
+
+      // ========== TERRAIN ==========
+      function createTerrain() {
+        // Segmen dikurangi sedikit (60x60) agar terlihat lebih kotak/kasar (low poly look)
+        const geo = new THREE.PlaneGeometry(100, 100, 150, 150);
+        const vertices = geo.attributes.position.array;
+
+        // 1. Buat gelombang tanah lebih acak (Noise sederhana)
+        for (let i = 0; i < vertices.length; i += 3) {
+          // Kombinasi sin/cos untuk membuat bukit dan lembah yang tidak terlalu halus
+          const x = vertices[i];
+          const y = vertices[i + 1];
+          // Rumus ketinggian yang lebih "bising"
+          vertices[i + 2] =
+            Math.sin(x * 0.1) * Math.cos(y * 0.1) * 2 +
+            Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.5;
+        }
+
+        geo.computeVertexNormals();
+
+        // 2. Pewarnaan Acak (Vertex Colors)
+        const count = geo.attributes.position.count;
+        const colors = [];
+        const color = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+          const height = vertices[i * 3 + 2];
+
+          // A. Tentukan Warna Dasar (Hijau Rumput)
+          // Kita pakai hijau yang sedikit lebih "bumi" (earthy)
+          color.setHex(0x3d7c3d);
+
+          // B. Variasi Random (Penting untuk tekstur)
+          // Ini membuat tanah terlihat "berbintik" natural, tidak polos
+          const noise = (Math.random() - 0.5) * 0.15;
+          color.r += noise;
+          color.g += noise;
+          color.b += noise;
+
+          // C. Gradasi Halus berdasarkan Ketinggian (Bukan Ganti Warna)
+          if (height < -1.5) {
+            // Area rendah: Hijau sedikit lebih Gelap & Kecoklatan (Tanah lembab)
+            // Tidak jadi abu-abu, tapi tetap hijau gelap
+            color.r -= 0.1;
+            color.g -= 0.1;
+            color.b -= 0.05;
+          } else if (height > 1.5) {
+            // Area tinggi: Sedikit lebih terang/kekuningan (Terpapar matahari)
+            color.r += 0.05;
+            color.g += 0.08;
+            color.b += 0.02;
+          }
+
+          // Pastikan warna tidak error (clamp 0-1)
+          color.r = Math.max(0, Math.min(1, color.r));
+          color.g = Math.max(0, Math.min(1, color.g));
+          color.b = Math.max(0, Math.min(1, color.b));
+
+          colors.push(color.r, color.g, color.b);
+        }
+
+        geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+
+        // 3. Material dengan Flat Shading & Vertex Colors
+        const mat = new THREE.MeshLambertMaterial({
+          vertexColors: true, // Gunakan warna yang kita buat di atas
+          flatShading: true, // PENTING: Membuat tampilan "faceted" (tidak halus/licin)
+          wireframe: false,
+        });
+
+        state.terrain = new THREE.Mesh(geo, mat);
+        state.terrain.rotation.x = -Math.PI / 2;
+        state.terrain.receiveShadow = true;
+        state.scene.add(state.terrain);
+      }
+      // ========== SKY ==========
+      function createSky() {
+        // Membuat bola raksasa sebagai langit
+        const geo = new THREE.SphereGeometry(250, 32, 15);
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0x87ceeb,
+          side: THREE.BackSide, // Penting: agar warna terlihat dari dalam bola
+        });
+        state.sky = new THREE.Mesh(geo, mat);
+        state.scene.add(state.sky);
+      }
+      // ========== CLOUDS ==========
+      function createClouds() {
+        const cloudCount = 100;
+        const pos = new Float32Array(cloudCount * 3);
+
+        // Tentukan posisi awal awan di atas kepala
+        for (let i = 0; i < cloudCount * 3; i += 3) {
+          // Rentang X dan Z yang lebar
+          pos[i] = (Math.random() - 0.5) * 150;
+          // Ketinggian Y yang konsisten (di bawah sky sphere, di atas terrain)
+          pos[i + 1] = Math.random() * 20 + 35;
+          pos[i + 2] = (Math.random() - 0.5) * 150;
+        }
+
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+        const mat = new THREE.PointsMaterial({
+          color: 0xffffff,
+          size: 5, // Ukuran partikel besar
+          transparent: true,
+          opacity: 0.7,
+          // Menggunakan teknik Alpha Testing untuk memotong partikel (untuk tekstur cloud yang lebih baik)
+          // sizeAttenuation: true, // (Opsional: agar awan jauh terlihat kecil)
+        });
+
+        state.cloudParticles = new THREE.Points(geo, mat); // Simpan referensi
+        state.scene.add(state.cloudParticles);
+      }
+      // ========== ANIMAL SHAPES ==========
+      function createAnimalShape(type) {
+        const group = new THREE.Group();
+        let color, bodyScale;
+
+        // Menentukan properti berdasarkan jenis hewan
+        switch (type) {
+          case "herbivore": // Rusa/KelincI: ramping, cokelat muda
+            color = 0xd2691e; // Cokelat
+            bodyScale = new THREE.Vector3(1.5, 0.8, 0.8);
+            break;
+          case "carnivore": // Serigala/Rubah: ramping, abu-abu
+            color = 0x696969; // Abu-abu gelap
+            bodyScale = new THREE.Vector3(1.6, 0.9, 0.9);
+            break;
+          case "omnivore": // Beruang/Rakun: bulat, cokelat tua
+            color = 0x8b4513; // Cokelat tua
+            bodyScale = new THREE.Vector3(1.8, 1.2, 1.0);
+            break;
+          default:
+            color = 0xffffff;
+            bodyScale = new THREE.Vector3(1, 1, 1);
+        }
+
+        // 1. Badan (BoxGeometry)
+        const bodyGeo = new THREE.BoxGeometry(
+          bodyScale.x,
+          bodyScale.y,
+          bodyScale.z
+        );
+        const bodyMat = new THREE.MeshLambertMaterial({
+          color: color,
+          flatShading: true, // <--- TAMBAHKAN INI
+        });
+
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = bodyScale.y / 2;
+        body.castShadow = true;
+        group.add(body);
+
+        // 2. Kepala (SphereGeometry kecil di ujung badan)
+        const headSize = bodyScale.z / 3;
+        const headGeo = new THREE.SphereGeometry(headSize, 6, 6);
+        const head = new THREE.Mesh(headGeo, bodyMat);
+        // Posisikan kepala di depan badan dan sedikit ke atas
+        head.position.set(
+          bodyScale.x / 2 - headSize / 2,
+          bodyScale.y / 2 + headSize / 2,
+          0
+        );
+        head.castShadow = true;
+        group.add(head);
+
+        // Atur skala keseluruhan model agar tidak terlalu besar
+        group.scale.set(0.5, 0.5, 0.5);
+        return group;
+      }
+
+      function createInvasiveShape() {
+        const group = new THREE.Group();
+
+        // Inti berduri (Dodecahedron bagus untuk bentuk kristal/virus/duri)
+        const geo = new THREE.DodecahedronGeometry(0.7, 0);
+        const mat = new THREE.MeshLambertMaterial({
+          color: 0x800080, // Ungu Gelap (Kesan Beracun)
+          flatShading: true,
+        });
+        const core = new THREE.Mesh(geo, mat);
+
+        // Tambahkan duri-duri kecil (Cone)
+        const spikeGeo = new THREE.ConeGeometry(0.2, 1, 4);
+        const spikeMat = new THREE.MeshLambertMaterial({ color: 0xff0000 }); // Ujung Merah
+
+        // Buat 4 duri acak
+        for (let i = 0; i < 4; i++) {
+          const spike = new THREE.Mesh(spikeGeo, spikeMat);
+          spike.position.set(Math.random() - 0.5, 0.5, Math.random() - 0.5);
+          spike.rotation.x = Math.random() - 0.5;
+          spike.rotation.z = Math.random() - 0.5;
+          core.add(spike);
+        }
+
+        core.castShadow = true;
+        core.position.y = 0.5;
+        group.add(core);
+
+        return group;
+      }
+
+      function createTreeShape(data) {
+        const group = new THREE.Group();
+
+        // 1. Batang (Trunk)
+        const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, data.trunkH, 7); // Segmen dikurangi jadi 7 biar kotak
+        const trunkMat = new THREE.MeshLambertMaterial({
+          color: 0x8b4513,
+          flatShading: true, // <--- TAMBAHKAN INI
+        });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = data.trunkH / 2;
+        trunk.castShadow = true;
+        group.add(trunk);
+
+        // 2. Mahkota Daun (Crown) - Bentuk berbeda tiap jenis
+        let crown;
+        const crownMat = new THREE.MeshLambertMaterial({
+          color: data.color,
+          flatShading: true, // <--- TAMBAHKAN INI
+        });
+
+        switch (data.shape) {
+          case "oak": // Bulat rimbun
+            crown = new THREE.SphereGeometry(data.crownR, 12, 12);
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + data.crownH / 3;
+            break;
+          case "pine": // Kerucut tajam (Cemara)
+            crown = new THREE.ConeGeometry(data.crownR, data.crownH, 8);
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + data.crownH / 2;
+            break;
+          case "birch": // Lonjong tinggi
+            crown = new THREE.SphereGeometry(data.crownR * 0.8, 8, 8);
+            crown.applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1)); // Memanjangkan bola
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + data.crownH / 3;
+            break;
+          case "sequoia": // Sangat tinggi dan besar
+            crown = new THREE.ConeGeometry(
+              data.crownR * 0.8,
+              data.crownH * 1.5,
+              6
+            );
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + (data.crownH * 1.5) / 2;
+            break;
+          case "maple": // Bulat lebar (untuk musim gugur nanti)
+            crown = new THREE.SphereGeometry(data.crownR, 10, 10);
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + data.crownH / 3;
+            break;
+          case "pioneer": // Kecil sederhana
+          default:
+            crown = new THREE.SphereGeometry(data.crownR, 8, 8);
+            crown = new THREE.Mesh(crown, crownMat);
+            crown.position.y = data.trunkH + data.crownH / 2;
+            break;
+        }
+
+        crown.castShadow = true;
+        group.add(crown);
+        return group;
+      }
+      // ========== TREES ==========
+      function plantTree(x, z, type = "oak") {
+        // Definisi data visual dan pertumbuhan untuk setiap pohon
+        const treeData = {
+          oak: {
+            trunkH: 4,
+            crownR: 2,
+            crownH: 4,
+            color: 0x228b22,
+            growthRate: 0.01,
+            shape: "oak",
+            maxScale: 1.5,
+          },
+          pine: {
+            trunkH: 6,
+            crownR: 1.5,
+            crownH: 6,
+            color: 0x0f5f0f,
+            growthRate: 0.02,
+            shape: "pine",
+            maxScale: 1.2,
+          },
+          birch: {
+            trunkH: 5,
+            crownR: 1.8,
+            crownH: 3,
+            color: 0x90ee90,
+            growthRate: 0.015,
+            shape: "birch",
+            maxScale: 1.1,
+          },
+          maple: {
+            trunkH: 3.5,
+            crownR: 2.5,
+            crownH: 3,
+            color: 0x006400,
+            growthRate: 0.018,
+            shape: "maple",
+            maxScale: 1.6,
+          },
+          sequoia: {
+            trunkH: 8,
+            crownR: 1.2,
+            crownH: 10,
+            color: 0x556b2f,
+            growthRate: 0.008,
+            shape: "sequoia",
+            maxScale: 2.5,
+          }, // Tumbuh lambat tapi besar
+          pioneer: {
+            trunkH: 3,
+            crownR: 1.2,
+            crownH: 2,
+            color: 0x7cfc00,
+            growthRate: 0.03,
+            shape: "pioneer",
+            maxScale: 0.8,
+          },
+        };
+
+        const data = treeData[type] || treeData["oak"]; // Fallback ke oak jika tipe salah
+
+        // GUNAKAN FUNGSI BARU DI SINI
+        const group = createTreeShape(data);
+
+        group.position.set(x, 0, z);
+        group.scale.set(0.1, 0.1, 0.1); // Mulai dari kecil (bibit)
+        state.scene.add(group);
+
+        state.trees.push({
+          mesh: group,
+          type: type,
+          age: 0,
+          health: 100,
+          growthRate: data.growthRate,
+          maxScale: data.maxScale,
+          originalColor: data.color,
+        });
+
+        // Update counter spesies
+        if (!state.species[type]) state.species[type] = 0; // Inisialisasi jika belum ada
+        state.species[type]++;
+
+        updateSoilFromTree(type, 1);
+      }
+
+      function removeTree(tree) {
+        state.scene.remove(tree.mesh);
+        const idx = state.trees.indexOf(tree);
+        if (idx > -1) {
+          state.trees.splice(idx, 1);
+          state.species[tree.type]--;
+          updateSoilFromTree(tree.type, -1);
+        }
+      }
+
+      function updateSoilFromTree(type, factor) {
+        const impact = {
+          oak: { n: 2, p: 1, k: 2 },
+          pine: { n: 1, p: 1, k: 1 },
+          birch: { n: 1.5, p: 1.5, k: 1 },
+          maple: { n: 2, p: 2, k: 1.5 }, // Maple butuh banyak nutrisi
+          sequoia: { n: 3, p: 1, k: 3 }, // Sequoia butuh banyak Nitrogen & Kalium
+          pioneer: { n: 3, p: 2, k: 1.5 },
+        };
+
+        const imp = impact[type] || impact["oak"];
+
+        state.soil.nitrogen += imp.n * factor;
+        state.soil.phosphorus += imp.p * factor;
+        state.soil.potassium += imp.k * factor;
+
+        // Logika kesuburan sederhana
+        state.soil.fertility += factor * 0.5;
+        state.soil.erosion -= factor * 0.8;
+      }
+
+      // ========== ANIMALS ==========
+      function addHerbivore() {
+        // GANTI: Menggunakan fungsi baru untuk membuat bentuk
+        const mesh = createAnimalShape("herbivore");
+
+        mesh.position.set(
+          (Math.random() - 0.5) * 80,
+          0, // Ubah posisi Y menjadi 0 karena createAnimalShape sudah mengatur tinggi badan.
+          (Math.random() - 0.5) * 80
+        );
+        state.scene.add(mesh);
+
+        state.animals.push({
+          mesh: mesh,
+          type: "herbivore",
+          health: 100,
+          energy: 100,
+          // Tambahkan properti untuk pergerakan dinamis (diperlukan untuk request berikutnya)
+          speed: 0.2,
+          target: new THREE.Vector3(
+            (Math.random() - 0.5) * 80,
+            0,
+            (Math.random() - 0.5) * 80
+          ),
+        });
+
+        state.species.herbivore++;
+      }
+
+      function addCarnivore() {
+        // GANTI: Menggunakan fungsi baru untuk membuat bentuk
+        const mesh = createAnimalShape("carnivore");
+
+        mesh.position.set(
+          (Math.random() - 0.5) * 80,
+          0, // Ubah posisi Y menjadi 0
+          (Math.random() - 0.5) * 80
+        );
+        state.scene.add(mesh);
+
+        state.animals.push({
+          mesh: mesh,
+          type: "carnivore",
+          health: 100,
+          energy: 100,
+          // Tambahkan properti untuk pergerakan dinamis
+          speed: 0.15,
+          target: new THREE.Vector3(
+            (Math.random() - 0.5) * 80,
+            0,
+            (Math.random() - 0.5) * 80
+          ),
+        });
+
+        state.species.carnivore++;
+      }
+
+      function addOmnivore() {
+        const mesh = createAnimalShape("omnivore");
+
+        mesh.position.set(
+          (Math.random() - 0.5) * 80,
+          0,
+          (Math.random() - 0.5) * 80
+        );
+        state.scene.add(mesh);
+
+        state.animals.push({
+          mesh: mesh,
+          type: "omnivore",
+          health: 100,
+          energy: 100,
+          speed: 0.1,
+          target: new THREE.Vector3(
+            (Math.random() - 0.5) * 80,
+            0,
+            (Math.random() - 0.5) * 80
+          ),
+        });
+
+        state.species.omnivore++; // Anda juga harus menambahkan 'omnivore: 1' ke objek state.species
+      }
+
+      // ========== INVASIVE SPECIES ==========
+      function addInvasiveSpecies(x, z) {
+        const mesh = createInvasiveShape();
+
+        mesh.position.set(x, 0, z); // Y di 0 karena bentuknya sudah diatur tingginya
+        state.scene.add(mesh);
+
+        state.invasiveSpecies.push({
+          mesh: mesh,
+          spreadRate: 0.05,
+          age: 0,
+        });
+
+        state.species.invasive++;
+      }
+
+      function removeInvasive(invasive) {
+        state.scene.remove(invasive.mesh);
+        const idx = state.invasiveSpecies.indexOf(invasive);
+        if (idx > -1) {
+          state.invasiveSpecies.splice(idx, 1);
+          state.species.invasive--;
+        }
+      }
+
+      // ========== RAIN & PARTICLES ==========
+      function startRain() {
+        if (state.isRaining) return; // Mencegah hujan dobel
+        state.isRaining = true;
+
+        // 1. Buat Geometri untuk 15.000 tetes (agar terlihat lebat)
+        const rainCount = 15000;
+        const rainGeo = new THREE.BufferGeometry();
+        const rainPos = [];
+        const rainVel = []; // Kecepatan jatuh tiap tetes beda-beda biar natural
+
+        for (let i = 0; i < rainCount; i++) {
+          // Posisi Acak (Area luas 160x160 agar mencakup seluruh kamera)
+          const x = (Math.random() - 0.5) * 160;
+          const y = Math.random() * 100 + 20; // Mulai dari ketinggian berbeda
+          const z = (Math.random() - 0.5) * 160;
+
+          rainPos.push(x, y, z);
+
+          // Kecepatan jatuh acak (biar tidak seragam seperti robot)
+          rainVel.push(0.5 + Math.random() * 0.5);
+        }
+
+        rainGeo.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(rainPos, 3)
+        );
+
+        // Simpan velocity sebagai atribut kustom (opsional) atau di state terpisah
+        // Untuk simpelnya, kita simpan di properti geometry saja
+        rainGeo.userData = { velocities: rainVel };
+
+        // 2. Material Hujan (Putih Transparan)
+        const rainMat = new THREE.PointsMaterial({
+          color: 0xaaaaaa, // Putih agak abu-abu (lebih realistis daripada biru kartun)
+          size: 0.15, // Ukuran kecil
+          transparent: true,
+          opacity: 0.8, // Agak transparan
+        });
+
+        // 3. Buat Mesh dan Simpan ke State
+        state.rainSystem = new THREE.Points(rainGeo, rainMat);
+        state.scene.add(state.rainSystem);
+      }
+
+      function stopRain() {
+        state.isRaining = false;
+        if (state.rainSystem) {
+          // Bersihkan memori agar tidak berat
+          state.scene.remove(state.rainSystem);
+          state.rainSystem.geometry.dispose();
+          state.rainSystem.material.dispose();
+          state.rainSystem = null;
+        }
+      }
+
+      // ========== POLICIES ==========
+      function reforest() {
+        for (let i = 0; i < 10; i++) {
+          const x = (Math.random() - 0.5) * 80;
+          const z = (Math.random() - 0.5) * 80;
+          plantTree(x, z, "pioneer");
+        }
+      }
+
+      function deforest() {
+        const count = Math.min(10, state.trees.length);
+        for (let i = 0; i < count; i++) {
+          if (state.trees.length > 0) {
+            removeTree(state.trees[0]);
+          }
+        }
+      }
+
+      function toggleSeason() {
+        const seasons = ["spring", "summer", "autumn", "winter"];
+        const idx = seasons.indexOf(state.season);
+        state.season = seasons[(idx + 1) % 4];
+
+        console.log("Season changed to:", state.season);
+
+        // 1. Update Langit & Cahaya (Visual Dasar)
+        let skyColor, groundSnow;
+        switch (state.season) {
+          case "spring":
+            skyColor = 0x87ceeb; // Biru Cerah
+            groundSnow = false;
+            state.temperature = 20;
+            break;
+          case "summer":
+            skyColor = 0x00bfff; // Biru Deep Sky
+            groundSnow = false;
+            state.temperature = 30;
+            break;
+          case "autumn":
+            skyColor = 0xffd700; // Keemasan (Sore hari)
+            groundSnow = false;
+            state.temperature = 15;
+            break;
+          case "winter":
+            skyColor = 0xb0c4de; // Abu-abu mendung (Light Steel Blue)
+            groundSnow = true;
+            state.temperature = -5;
+            break;
+        }
+
+        // Terapkan Warna Langit
+        state.sky.material.color.setHex(skyColor);
+        state.scene.fog.color.setHex(skyColor);
+
+        // 2. Update Warna Tanah (Salju vs Rumput)
+        updateTerrainColors(groundSnow);
+
+        // 3. Update Warna Pohon (Gugur/Salju/Hijau)
+        state.trees.forEach((tree) => {
+          // Ambil Mesh Mahkota (Crown) - biasanya anak ke-2 (index 1) dari grup
+          // Karena kita pakai group.add(trunk), lalu group.add(crown)
+          const crownMesh = tree.mesh.children[1];
+
+          if (state.season === "autumn") {
+            // Warna Acak Musim Gugur (Merah, Oranye, Kuning)
+            const autumnColors = [0xff4500, 0xd2691e, 0xff8c00, 0xffd700];
+            const randColor =
+              autumnColors[Math.floor(Math.random() * autumnColors.length)];
+            crownMesh.material.color.setHex(randColor);
+          } else if (state.season === "winter") {
+            // Tertutup Salju (Putih) atau Batang Kering (Abu)
+            if (tree.type === "pine" || tree.type === "sequoia") {
+              crownMesh.material.color.setHex(0xffffff); // Cemara jadi putih kena salju
+            } else {
+              crownMesh.material.color.setHex(0x888888); // Pohon daun lebar jadi gundul/abu
+            }
+          } else {
+            // Kembali ke Warna Asli (Spring/Summer)
+            crownMesh.material.color.setHex(tree.originalColor);
+          }
+        });
+
+        // 4. Update UI
+        updateUI();
+      }
+
+      function updateTerrainColors(isSnow) {
+        const geo = state.terrain.geometry;
+        const colors = geo.attributes.color;
+        const count = colors.count;
+        const vertices = geo.attributes.position.array;
+
+        for (let i = 0; i < count; i++) {
+          const height = vertices[i * 3 + 2];
+          const color = new THREE.Color();
+
+          if (isSnow) {
+            // === MODE SALJU ===
+            // Putih bersih
+            color.setHex(0xffffff);
+
+            // Sedikit variasi biru muda untuk bayangan di lembah
+            if (height < -1) {
+              color.setHex(0xeff5ff);
+            }
+          } else {
+            // === MODE RUMPUT NATURAL (KEMBALI KE ASAL) ===
+            // (Logika yang sama dengan yang kita buat di revisi sebelumnya)
+            color.setHex(0x3d7c3d);
+            const noise = (Math.random() - 0.5) * 0.15;
+            color.r += noise;
+            color.g += noise;
+            color.b += noise;
+
+            if (height < -1.5) {
+              color.r -= 0.1;
+              color.g -= 0.1;
+              color.b -= 0.05;
+            } else if (height > 1.5) {
+              color.r += 0.05;
+              color.g += 0.08;
+              color.b += 0.02;
+            }
+          }
+
+          // Set warna ke buffer attribute
+          colors.setXYZ(i, color.r, color.g, color.b);
+        }
+
+        // Beritahu Three.js bahwa warna berubah
+        colors.needsUpdate = true;
+      }
+
+      // ========== ECOSYSTEM UPDATE ==========
+      function updateEcosystem() {
+        state.dayCount += state.simSpeed;
+        state.time += state.simSpeed;
+
+        // =========================================
+        // 1. UPDATE TREES (LOGIKA TUMBUH & MATI)
+        // =========================================
+        state.trees.forEach((tree) => {
+          tree.age += state.simSpeed;
+
+          // --- A. Logika Pertumbuhan (Air & Musim) ---
+          if (tree.mesh.scale.x < tree.maxScale) {
+            // Faktor Musim
+            let seasonFactor = 1.0;
+            if (state.season === "winter") seasonFactor = 0.0; // Stop tumbuh
+            else if (state.season === "spring") seasonFactor = 1.5; // Cepat
+            else if (state.season === "autumn") seasonFactor = 0.5; // Lambat
+
+            // Faktor Air
+            const waterFactor = Math.max(0.1, state.soil.moisture / 100);
+
+            // Rumus Total
+            const grow =
+              tree.growthRate *
+              state.simSpeed *
+              (state.soil.fertility / 100) *
+              waterFactor *
+              seasonFactor;
+
+            tree.mesh.scale.x += grow;
+            tree.mesh.scale.y += grow;
+            tree.mesh.scale.z += grow;
+          }
+
+          // Pohon menyerap air tanah
+          state.soil.moisture -= 0.005 * state.simSpeed;
+
+          // --- B. Logika Kekeringan (Drought) ---
+          if (state.soil.moisture < 10 && state.season === "summer") {
+            // 1. Pohon sakit karena kurang air
+            tree.health -= 0.3 * state.simSpeed; // Sedikit dipercepat biar efeknya terlihat
+
+            // 2. VISUAL: Ubah warna daun menjadi Cokelat Kering pelan-pelan
+            const crownMesh = tree.mesh.children[1]; // Ambil bagian daun (index 1)
+
+            if (crownMesh) {
+              const originalColor = new THREE.Color(tree.originalColor);
+              const dryColor = new THREE.Color(0x8b4513); // SaddleBrown (Cokelat Kering)
+
+              // Hitung faktor kerusakan (0.0 = Mati, 1.0 = Sehat)
+              const healthFactor = Math.max(0, tree.health / 100);
+
+              // Lerp (Linear Interpolation): Geser warna dari Hijau ke Cokelat
+              // Jika health 100%, 1 - 1 = 0 (Tetap Hijau)
+              // Jika health 0%, 1 - 0 = 1 (Full Cokelat)
+              crownMesh.material.color
+                .copy(originalColor)
+                .lerp(dryColor, 1 - healthFactor);
+            }
+
+            // 3. Jika kesehatan habis, pohon mati
+            if (tree.health <= 0) {
+              removeTree(tree);
+            }
+          }
+        });
+
+        // =========================================
+        // 2. UPDATE ANIMALS (GERAK & MAKAN)
+        // =========================================
+        state.animals.forEach((animal) => {
+          // --- A. Pergerakan ---
+          if (
+            !animal.target ||
+            animal.mesh.position.distanceTo(animal.target) < 2
+          ) {
+            animal.target = new THREE.Vector3(
+              (Math.random() - 0.5) * 80,
+              0,
+              (Math.random() - 0.5) * 80
+            );
+          }
+
+          const direction = new THREE.Vector3()
+            .subVectors(animal.target, animal.mesh.position)
+            .normalize();
+
+          // Rotasi halus
+          const targetRotation = Math.atan2(direction.x, direction.z);
+          let rotDiff = targetRotation - animal.mesh.rotation.y;
+          while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+          while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+          animal.mesh.rotation.y += rotDiff * 0.1;
+
+          // Gerak maju
+          const speed = (animal.speed || 0.1) * state.simSpeed;
+          animal.mesh.position.x += direction.x * speed;
+          animal.mesh.position.z += direction.z * speed;
+
+          // Batas area
+          animal.mesh.position.x = Math.max(
+            -45,
+            Math.min(45, animal.mesh.position.x)
+          );
+          animal.mesh.position.z = Math.max(
+            -45,
+            Math.min(45, animal.mesh.position.z)
+          );
+
+          // --- B. Energi & Makan ---
+          animal.energy -= 0.1 * state.simSpeed;
+
+          // Herbivora makan pohon
+          if (
+            animal.type === "herbivore" &&
+            state.trees.length > 0 &&
+            animal.energy < 50
+          ) {
+            animal.energy += 5;
+          }
+
+          // Karnivora makan Herbivora (LOGIKA PREDASI)
+          if (animal.type === "carnivore" && animal.energy < 70) {
+            let prey = null;
+            let closestDist = 5;
+
+            for (let i = 0; i < state.animals.length; i++) {
+              const other = state.animals[i];
+              // Pastikan targetnya Herbivora dan masih hidup
+              if (other.type === "herbivore" && other.energy > 0) {
+                const dist = animal.mesh.position.distanceTo(
+                  other.mesh.position
+                );
+                if (dist < closestDist) {
+                  prey = other;
+                  break;
+                }
+              }
+            }
+
+            if (prey) {
+              animal.energy += 40; // Predator kenyang
+              prey.energy = 0; // Mangsa mati
+              console.log("🐺 Nyam! Karnivora memakan Herbivora.");
+            }
+          }
+
+          // Reproduksi
+          if (animal.energy > 80 && Math.random() < 0.005 * state.simSpeed) {
+            if (animal.type === "herbivore") addHerbivore();
+            else if (animal.type === "carnivore") addCarnivore();
+            else if (animal.type === "omnivore") addOmnivore();
+          }
+
+          // Mati kelaparan
+          if (animal.energy <= 0) {
+            state.scene.remove(animal.mesh);
+            if (state.species[animal.type]) state.species[animal.type]--;
+          }
+        });
+
+        // Bersihkan array hewan mati
+        state.animals = state.animals.filter((a) => a.energy > 0);
+
+        // =========================================
+        // 3. UPDATE INVASIVE & LINGKUNGAN
+        // =========================================
+
+        // Invasive Species Logic
+        state.invasiveSpecies.forEach((inv) => {
+          inv.age += state.simSpeed;
+          if (inv.age > 10 && Math.random() < inv.spreadRate * state.simSpeed) {
+            const nx = inv.mesh.position.x + (Math.random() - 0.5) * 10;
+            const nz = inv.mesh.position.z + (Math.random() - 0.5) * 10;
+            if (Math.abs(nx) < 45 && Math.abs(nz) < 45) {
+              addInvasiveSpecies(nx, nz);
+            }
+          }
+          state.trees.forEach((tree) => {
+            const dx = tree.mesh.position.x - inv.mesh.position.x;
+            const dz = tree.mesh.position.z - inv.mesh.position.z;
+            if (Math.sqrt(dx * dx + dz * dz) < 5) {
+              tree.health -= 0.5 * state.simSpeed;
+              if (tree.health <= 0) removeTree(tree);
+            }
+          });
+        });
+
+        // Soil Update
+        if (state.isRaining) {
+          state.soil.moisture += 2 * state.simSpeed;
+          state.soil.erosion +=
+            0.5 * state.simSpeed * (1 - state.forestCoverage / 100);
+        } else {
+          state.soil.moisture -= 0.3 * state.simSpeed;
+        }
+
+        // Batas nilai tanah
+        state.soil.moisture = Math.max(0, Math.min(100, state.soil.moisture));
+        state.soil.nitrogen = Math.max(0, Math.min(100, state.soil.nitrogen));
+        state.soil.phosphorus = Math.max(
+          0,
+          Math.min(100, state.soil.phosphorus)
+        );
+        state.soil.potassium = Math.max(0, Math.min(100, state.soil.potassium));
+        state.soil.erosion = Math.max(0, Math.min(100, state.soil.erosion));
+        state.soil.fertility =
+          (state.soil.nitrogen + state.soil.phosphorus + state.soil.potassium) /
+          3;
+
+        // Hitung Metrik
+        state.forestCoverage = Math.min(100, (state.trees.length / 100) * 100);
+        const speciesCount = Object.keys(state.species).filter(
+          (k) => state.species[k] > 0
+        ).length;
+        state.biodiversity = Math.min(
+          100,
+          (speciesCount / 8) * 100 + state.trees.length * 0.2
+        );
+        state.floodRisk = Math.max(
+          0,
+          state.soil.moisture - state.forestCoverage
+        );
+        state.ecosystemHealth =
+          state.biodiversity * 0.3 +
+          state.forestCoverage * 0.3 +
+          state.soil.fertility * 0.2 +
+          (100 - state.soil.erosion) * 0.2;
+
+        // Efek musim tambahan
+        if (state.season === "summer" && state.soil.moisture < 20) {
+          state.soil.erosion += 0.2 * state.simSpeed;
+        }
+        if (state.season === "winter") {
+          state.animals.forEach((a) => (a.energy -= 0.05 * state.simSpeed));
+        }
+
+        updateUI();
+      }
+
+      // ========== UI UPDATES ==========
+      function updateUI() {
+        document.getElementById("health-val").textContent =
+          state.ecosystemHealth.toFixed(1) + "%";
+        document.getElementById("health-bar").style.width =
+          state.ecosystemHealth + "%";
+
+        document.getElementById("biodiv-val").textContent =
+          state.biodiversity.toFixed(1) + "%";
+        document.getElementById("biodiv-bar").style.width =
+          state.biodiversity + "%";
+
+        document.getElementById("coverage-val").textContent =
+          state.forestCoverage.toFixed(1) + "%";
+        document.getElementById("coverage-bar").style.width =
+          state.forestCoverage + "%";
+
+        document.getElementById("fertility-val").textContent =
+          state.soil.fertility.toFixed(1) + "%";
+        document.getElementById("fertility-bar").style.width =
+          state.soil.fertility + "%";
+
+        document.getElementById("erosion-val").textContent =
+          state.soil.erosion.toFixed(1) + "%";
+        document.getElementById("erosion-bar").style.width =
+          state.soil.erosion + "%";
+
+        document.getElementById("moisture-val").textContent =
+          state.soil.moisture.toFixed(1) + "%";
+        document.getElementById("moisture-bar").style.width =
+          state.soil.moisture + "%";
+
+        document.getElementById("flood-val").textContent =
+          state.floodRisk.toFixed(1) + "%";
+        document.getElementById("flood-bar").style.width =
+          state.floodRisk + "%";
+
+        document.getElementById("season-val").textContent =
+          state.season.charAt(0).toUpperCase() + state.season.slice(1);
+        document.getElementById("day-val").textContent = Math.floor(
+          state.dayCount
+        );
+
+        // Species list
+        const speciesList = document.getElementById("species-list");
+        speciesList.innerHTML = `
+                <div class="species-item">
+                    <span class="species-name">🌳 Oak</span>
+                    <span class="species-pop">${state.species.oak}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🌲 Pine</span>
+                    <span class="species-pop">${state.species.pine}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🌿 Birch</span>
+                    <span class="species-pop">${state.species.birch}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🌱 Pioneer</span>
+                    <span class="species-pop">${state.species.pioneer}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🦌 Herbivora</span>
+                    <span class="species-pop">${state.species.herbivore}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🐺 Karnivora</span>
+                    <span class="species-pop">${state.species.carnivore}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🦋 Serangga</span>
+                    <span class="species-pop">${state.species.insects}</span>
+                </div>
+                <div class="species-item">
+                    <span class="species-name">🦠 Invasif</span>
+                    <span class="species-pop">${state.species.invasive}</span>
+                </div>
+            `;
+
+        // Warnings
+        const warnings = document.getElementById("warnings");
+        let warningHTML = "";
+
+        if (state.ecosystemHealth < 30) {
+          warningHTML +=
+            '<div class="warning">⚠️ Kesehatan ekosistem kritis!</div>';
+        }
+        if (state.soil.erosion > 70) {
+          warningHTML += '<div class="warning">⚠️ Erosi tanah tinggi!</div>';
+        }
+        if (state.floodRisk > 60) {
+          warningHTML += '<div class="warning">⚠️ Risiko banjir tinggi!</div>';
+        }
+        if (state.species.invasive > 10) {
+          warningHTML +=
+            '<div class="warning">⚠️ Spesies invasif menyebar!</div>';
+        }
+        if (state.forestCoverage < 20) {
+          warningHTML +=
+            '<div class="warning">⚠️ Tutupan hutan sangat rendah!</div>';
+        }
+        if (state.biodiversity < 30) {
+          warningHTML += '<div class="warning">⚠️ Biodiversitas rendah!</div>';
+        }
+
+        if (warningHTML === "") {
+          warningHTML =
+            '<div class="info">✅ Ekosistem dalam kondisi baik</div>';
+        }
+
+        warnings.innerHTML = warningHTML;
+
+        // Update history
+        state.history.health.push(state.ecosystemHealth);
+        state.history.biodiv.push(state.biodiversity);
+        state.history.coverage.push(state.forestCoverage);
+
+        // Keep only last 50 data points
+        if (state.history.health.length > 50) {
+          state.history.health.shift();
+          state.history.biodiv.shift();
+          state.history.coverage.shift();
+        }
+      }
+
+      // ========== GRAPHS ==========
+      function updateGraphs() {
+        const canvas = document.getElementById("history-graph");
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw grid
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+          const y = (h / 5) * i;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // Draw health line
+        drawLine(ctx, state.history.health, "#4ecdc4", w, h);
+
+        // Draw biodiversity line
+        drawLine(ctx, state.history.biodiv, "#f39c12", w, h);
+
+        // Draw coverage line
+        drawLine(ctx, state.history.coverage, "#2ecc71", w, h);
+
+        // Legend
+        ctx.font = "10px Arial";
+        ctx.fillStyle = "#4ecdc4";
+        ctx.fillText("Kesehatan", 10, 15);
+        ctx.fillStyle = "#f39c12";
+        ctx.fillText("Biodiversitas", 10, 30);
+        ctx.fillStyle = "#2ecc71";
+        ctx.fillText("Tutupan Hutan", 10, 45);
+      }
+
+      function drawLine(ctx, data, color, w, h) {
+        if (data.length < 2) return;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        const step = w / (data.length - 1);
+
+        for (let i = 0; i < data.length; i++) {
+          const x = i * step;
+          const y = h - (data[i] / 100) * h;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+
+        ctx.stroke();
+      }
+
+      // ========== MOUSE INTERACTION ==========
+      function onCanvasClick(event) {
+        const rect = state.renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera({ x, y }, state.camera);
+
+        const intersects = raycaster.intersectObject(state.terrain);
+
+        if (intersects.length > 0) {
+          const point = intersects[0].point;
+          const mode = document.getElementById("interaction-mode").value;
+
+          switch (mode) {
+            case "plant":
+              const treeType = document.getElementById("tree-type").value;
+              plantTree(point.x, point.z, treeType);
+              break;
+
+            case "remove":
+              // Find nearest tree
+              let nearest = null;
+              let minDist = 5;
+              state.trees.forEach((tree) => {
+                const dx = tree.mesh.position.x - point.x;
+                const dz = tree.mesh.position.z - point.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < minDist) {
+                  minDist = dist;
+                  nearest = tree;
+                }
+              });
+              if (nearest) removeTree(nearest);
+              break;
+
+            case "add-invasive":
+              addInvasiveSpecies(point.x, point.z);
+              break;
+
+            case "remove-invasive":
+              // Find nearest invasive
+              let nearestInv = null;
+              let minDistInv = 5;
+              state.invasiveSpecies.forEach((inv) => {
+                const dx = inv.mesh.position.x - point.x;
+                const dz = inv.mesh.position.z - point.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < minDistInv) {
+                  minDistInv = dist;
+                  nearestInv = inv;
+                }
+              });
+              if (nearestInv) removeInvasive(nearestInv);
+              break;
+          }
+        }
+      }
+
+      // ========== CONTROLS ==========
+      function updateSpeed(val) {
+        state.simSpeed = parseFloat(val);
+        document.getElementById("speed-val").textContent = val + "x";
+      }
+
+      // ========== ANIMATION LOOP ==========
+      function animate() {
+        requestAnimationFrame(animate);
+        // Kecepatan putaran hari (Sesuaikan dengan keinginan Anda)
+        const daySpeed = 0.00005 * state.simSpeed;
+        state.time += daySpeed;
+
+        // ========= LOGIKA MATAHARI & LANGIT REALISTIS =========
+
+        // Hitung posisi sudut matahari (dari 0 hingga 2*PI)
+        const sunAngle = state.time * 2 * Math.PI;
+        const sunX = Math.cos(sunAngle) * 80;
+        const sunY = Math.sin(sunAngle) * 80;
+
+        // Atur posisi Matahari (cahaya)
+        state.dirLight.position.set(sunX, sunY, 30);
+
+        // Hitung intensitas dan warna berdasarkan posisi Y (ketinggian) matahari
+        let lightIntensity;
+        let skyColor;
+
+        if (sunY > 10) {
+          // SIANG HARI (Matahari di atas)
+          lightIntensity = 1.0;
+          skyColor = 0x87ceeb; // Biru terang
+        } else if (sunY > -10) {
+          // SENJA / SUBUH (Matahari di cakrawala)
+          // Interpolasi halus antara malam dan siang
+          const blend = (sunY + 10) / 20;
+          lightIntensity = 0.3 + 0.7 * blend; // Intensitas antara 0.3 dan 1.0
+
+          // Warna langit oranye/kuning saat senja
+          const dayColor = new THREE.Color(0x87ceeb);
+          const sunsetColor = new THREE.Color(0xff8c00);
+          dayColor.lerp(sunsetColor, 1 - blend);
+          skyColor = dayColor.getHex();
+        } else {
+          // MALAM HARI (Matahari di bawah)
+          lightIntensity = 0.2;
+          skyColor = 0x1a1a2e; // Biru gelap/Hitam
+        }
+
+        // Terapkan perubahan pada cahaya dan langit
+        state.dirLight.intensity = lightIntensity;
+        state.sky.material.color.set(skyColor);
+        state.scene.fog.color.set(skyColor);
+
+        // ========= LOGIKA AWAN BERGERAK =========
+
+        if (state.cloudParticles) {
+          state.cloudParticles.position.x += daySpeed * 5000; // Bergerak ke satu arah
+          state.cloudParticles.position.z += daySpeed * 2000;
+
+          // Reset posisi awan jika sudah terlalu jauh
+          if (state.cloudParticles.position.x > 75)
+            state.cloudParticles.position.x = -75;
+          if (state.cloudParticles.position.z > 75)
+            state.cloudParticles.position.z = -75;
+        }
+        state.camera.position.x = Math.sin(state.time * 0.0001) * 60;
+        state.camera.position.z = Math.cos(state.time * 0.0001) * 60;
+        state.camera.lookAt(0, 0, 0);
+
+        if (state.isRaining && state.rainSystem) {
+          const positions = state.rainSystem.geometry.attributes.position.array;
+          const velocities = state.rainSystem.geometry.userData.velocities;
+
+          // Cek apakah ini Salju atau Hujan?
+          const isSnow = state.season === "winter";
+
+          // Ubah tampilan partikel secara realtime
+          if (isSnow) {
+            state.rainSystem.material.color.setHex(0xffffff); // Putih
+            state.rainSystem.material.size = 0.3; // Kepingan salju lebih besar
+          } else {
+            state.rainSystem.material.color.setHex(0xaaaaaa); // Abu air
+            state.rainSystem.material.size = 0.15; // Tetesan kecil
+          }
+
+          for (let i = 0; i < velocities.length; i++) {
+            // Tentukan kecepatan jatuh
+            // Jika salju: jatuh pelan (0.3x kecepatan asli). Jika hujan: normal.
+            const fallSpeed = isSnow
+              ? velocities[i] * 0.3
+              : velocities[i] * 2.0;
+
+            positions[i * 3 + 1] -= fallSpeed * state.simSpeed;
+
+            if (positions[i * 3 + 1] < 0) {
+              positions[i * 3 + 1] = Math.random() * 50 + 50;
+
+              // Salju tidak terlalu menyuburkan tanah dibanding hujan
+              if (!isSnow && Math.random() < 0.0001) {
+                state.soil.moisture += 0.05;
+              }
+            }
+          }
+          state.rainSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate animals
+        state.animals.forEach((animal) => {
+          // Memberikan efek gerakan 'bobbing' (naik-turun) ringan
+          animal.mesh.position.y = Math.sin(state.time * 0.5) * 0.1 + 0.5;
+          // (Posisikan di atas tanah 0.5)
+        });
+
+        // Animate invasive species
+        state.invasiveSpecies.forEach((inv) => {
+          inv.mesh.rotation.y += 0.02;
+          inv.mesh.scale.y = 1 + Math.sin(state.time * 0.01 + inv.age) * 0.1;
+        });
+
+        state.renderer.render(state.scene, state.camera);
+      }
+
+      // ========== RESIZE ==========
+      function onResize() {
+        state.camera.aspect = window.innerWidth / window.innerHeight;
+        state.camera.updateProjectionMatrix();
+        state.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // ========== START ==========
+      window.addEventListener("load", init);
+    </script>
+  </body>
+</html>
